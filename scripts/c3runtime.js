@@ -489,6 +489,18 @@ self["C3_Shaders"] = {};
 
 "use strict";C3.Plugins.Text.Exps={Text(){return this._text},PlainText(){return C3.BBString.StripAnyTags(this._text)},FaceName(){return this._faceName},FaceSize(){return this._ptSize},TextWidth(){return this._UpdateTextSize(),this._webglText.GetTextWidth()},TextHeight(){return this._UpdateTextSize(),this._webglText.GetTextHeight()}};
 
+"use strict";C3.Plugins.gamepad=class extends C3.SDKPluginBase{constructor(a){super(a),this._isSupported=!1,this._runtime.AddLoadPromise(this._runtime.PostComponentMessageToDOMAsync("gamepad","is-supported").then((a)=>this._isSupported=!!a))}Release(){super.Release()}IsSupported(){return this._isSupported}};
+
+"use strict";C3.Plugins.gamepad.Type=class extends C3.SDKTypeBase{constructor(a){super(a)}Release(){super.Release()}OnCreate(){}};
+
+"use strict";{class a{constructor(a,c){this._index=a,this._id=c,this._state=new b,this._oldState=new b}GetID(){return this._id}Update(a,b){const c=this._oldState;this._oldState=this._state,this._state=c,this._state.Update(a,b)}GetButtonCount(){return this._state.GetButtonCount()}GetAxisCount(){return this._state.GetAxisCount()}HasButtonBecomePressed(a){return .5<=this._state.GetButtonAt(a)&&.5>this._oldState.GetButtonAt(a)}HasButtonBecomeReleased(a){return .5>this._state.GetButtonAt(a)&&.5<=this._oldState.GetButtonAt(a)}GetButtonAt(a){return this._state.GetButtonAt(a)}IsButtonDown(a){return .5<=this._state.GetButtonAt(a)}GetAxisAt(a){return this._state.GetAxisAt(a)}}class b{constructor(){this._buttons=[],this._axes=[]}Update(a,b){const c=this._buttons;let d=0;for(let e=a.length;d<e;++d){const e=a[d];d===c.length?c.push(e["value"]):c[d]=e["value"]}d<c.length&&C3.truncateArray(c,d),C3.shallowAssignArray(this._axes,b)}GetButtonCount(){return this._buttons.length}GetAxisCount(){return this._axes.length}GetButtonAt(a){return a=Math.floor(a),0>a||a>=this._buttons.length?0:this._buttons[a]}GetAxisAt(a){return a=Math.floor(a),0>a||a>=this._axes.length?0:this._axes[a]}}C3.Plugins.gamepad.Instance=class extends C3.SDKInstanceBase{constructor(a,b){super(a,"gamepad"),this._deadZone=25,this._lastButton=0,this._gamepads=new Map,b&&(this._deadZone=b[0]),this.AddDOMMessageHandler("gamepad-connected",(a)=>this._OnGamepadConnected(a)),this.AddDOMMessageHandler("gamepad-disconnected",(a)=>this._OnGamepadDisconnected(a)),this.AddDOMMessageHandler("input-update",(a)=>this._OnInputUpdate(a)),this.PostToDOM("ready")}Release(){super.Release()}_OnGamepadConnected(b){const c=b["index"],d=b["id"];this._gamepads.has(c)||(this._gamepads.set(c,new a(c,d)),this.Trigger(C3.Plugins.gamepad.Cnds.OnGamepadConnected))}_OnGamepadDisconnected(a){const b=a["index"];this.Trigger(C3.Plugins.gamepad.Cnds.OnGamepadDisconnected),this._gamepads.delete(b)}_OnInputUpdate(a){for(const b of a)this._OnGamepadInputUpdate(b)}_OnGamepadInputUpdate(a){const b=a["index"];this._gamepads.has(b)||this._OnGamepadConnected(a);const c=this._gamepads.get(b);c.Update(a["buttons"],a["axes"]);for(let b=0,d=c.GetButtonCount();b<d;++b)c.HasButtonBecomePressed(b)&&(this._lastButton=b)}_GetGamepadByIndex(a){return this._gamepads.get(Math.floor(a))||null}GetDebuggerProperties(){return[{title:"plugins.gamepad.name",properties:[{name:"plugins.gamepad.debugger.last-button",value:this._lastButton}]}]}}}
+
+"use strict";C3.Plugins.gamepad.Cnds={SupportsGamepad(){return this.GetPlugin().IsSupported()},OnGamepadConnected(){return!0},OnGamepadDisconnected(){return!0},IsButtonDown(a,b){const c=this._GetGamepadByIndex(a);if(!c)return!1;const d=c.IsButtonDown(b);return d&&(this._lastButton=b),d},OnButtonDown(a,b){const c=this._GetGamepadByIndex(a);if(!c)return!1;const d=c.HasButtonBecomePressed(b);return d&&(this._lastButton=b),d},OnButtonUp(a,b){const c=this._GetGamepadByIndex(a);if(!c)return!1;const d=c.HasButtonBecomeReleased(b);return d&&(this._lastButton=b),d},HasGamepads(){return 0<this._gamepads.size},CompareAxis(a,b,c,d){b=Math.floor(b);const e=this._GetGamepadByIndex(a);if(!e)return!1;let f=e.GetAxisAt(b),g=0;return g=0==b%2?e.GetAxisAt(b+1):e.GetAxisAt(b-1),f*=100,g*=100,Math.hypot(f,g)<=this._deadZone&&(f=0),C3.compare(f,c,d)},OnAnyButtonDown(a){const b=this._GetGamepadByIndex(a);if(!b)return!1;for(let c=0,d=b.GetButtonCount();c<d;++c)if(b.HasButtonBecomePressed(c))return this._lastButton=c,!0;return!1},OnAnyButtonUp(a){const b=this._GetGamepadByIndex(a);if(!b)return!1;for(let c=0,d=b.GetButtonCount();c<d;++c)if(b.HasButtonBecomeReleased(c))return this._lastButton=c,!0;return!1},IsButtonIndexDown(a,b){b=Math.floor(b);const c=this._GetGamepadByIndex(a);if(!c)return!1;const d=c.IsButtonDown(b);return d&&(this._lastButton=b),d},OnButtonIndexDown(a,b){b=Math.floor(b);const c=this._GetGamepadByIndex(a);if(!c)return!1;const d=c.HasButtonBecomePressed(b);return d&&(this._lastButton=b),d},OnButtonIndexUp(a,b){b=Math.floor(b);const c=this._GetGamepadByIndex(a);if(!c)return!1;const d=c.HasButtonBecomeReleased(b);return d&&(this._lastButton=b),d}};
+
+"use strict";C3.Plugins.gamepad.Acts={Vibrate(a,b,c,d){this.PostToDOM("vibrate",{"index":a,"duration":b,"weakMag":C3.clamp(c/100,0,1),"strongMag":C3.clamp(d/100,0,1)})},ResetVibrate(a){this.PostToDOM("reset-vibrate",{"index":a})}};
+
+"use strict";C3.Plugins.gamepad.Exps={GamepadCount(){return this._gamepads.size},GamepadID(a){const b=this._GetGamepadByIndex(a);return b?b.GetID():""},GamepadAxes(a){const b=this._GetGamepadByIndex(a);if(!b)return"";let c="";for(let d=0,e=b.GetAxisCount();d<e;++d)c+=`Axis ${d}: ${Math.round(100*b.GetAxisAt(d))}\n`;return c},GamepadButtons(a){const b=this._GetGamepadByIndex(a);if(!b)return"";let c="";for(let d=0,e=b.GetButtonCount();d<e;++d)c+=`Button ${d}: ${Math.round(100*b.GetButtonAt(d))}\n`;return c},RawButton(a,b){const c=this._GetGamepadByIndex(a);return c?c.GetButtonAt(Math.floor(b)):0},RawAxis(a,b){const c=this._GetGamepadByIndex(a);return c?c.GetAxisAt(Math.floor(b)):0},RawButtonCount(a){const b=this._GetGamepadByIndex(a);return b?b.GetButtonCount():0},RawAxisCount(a){const b=this._GetGamepadByIndex(a);return b?b.GetAxisCount():0},Button(a,b){const c=this._GetGamepadByIndex(a);return c?100*c.GetButtonAt(Math.floor(b)):0},Axis(a,b){b=Math.floor(b);const c=this._GetGamepadByIndex(a);if(!c)return 0;let d=c.GetAxisAt(b),e=0;return e=0==b%2?c.GetAxisAt(b+1):c.GetAxisAt(b-1),d*=100,e*=100,Math.hypot(d,e)<=this._deadZone&&(d=0),d},LastButton(){return this._lastButton}};
+
 "use strict";C3.Behaviors.Platform=class extends C3.SDKBehaviorBase{constructor(a){super(a)}Release(){super.Release()}};
 
 "use strict";C3.Behaviors.Platform.Type=class extends C3.SDKBehaviorTypeBase{constructor(a){super(a)}Release(){super.Release()}OnCreate(){}};
@@ -574,6 +586,7 @@ self.C3_GetObjectRefTable = function () {
 		C3.Plugins.Keyboard,
 		C3.Plugins.Text,
 		C3.Behaviors.Bullet,
+		C3.Plugins.gamepad,
 		C3.Plugins.System.Cnds.IsGroupActive,
 		C3.Plugins.Keyboard.Cnds.IsKeyDown,
 		C3.Behaviors.Platform.Acts.SimulateControl,
@@ -582,7 +595,7 @@ self.C3_GetObjectRefTable = function () {
 		C3.Plugins.Sprite.Acts.SetMirrored,
 		C3.Plugins.Sprite.Cnds.CompareY,
 		C3.Plugins.System.Exps.layoutheight,
-		C3.Plugins.System.Acts.RestartLayout,
+		C3.Plugins.Sprite.Acts.SetPos,
 		C3.Plugins.System.Acts.CreateObject,
 		C3.Plugins.Sprite.Exps.X,
 		C3.Plugins.Sprite.Exps.Y,
@@ -594,7 +607,6 @@ self.C3_GetObjectRefTable = function () {
 		C3.Plugins.Text.Acts.SetText,
 		C3.Plugins.System.Acts.Wait,
 		C3.Plugins.System.Exps.random,
-		C3.Plugins.System.Acts.SetVar,
 		C3.Plugins.System.Cnds.OnLayoutStart
 	];
 };
@@ -700,22 +712,27 @@ p => {
 const f0 = p._GetNode(0).GetBoundMethod();
 return () => f0();
 },
+() => 94.226,
+() => 368.899,
 () => 0,
 p => {
 const n0 = p._GetNode(0);
 return () => n0.ExpObject();
 },
 () => 180,
-() => "Player_2",
-() => 1,
+() => 574.498,
+() => 368.622,
+() => -1,
 p => {
 const v0 = p._GetNode(0).GetVar();
 return () => v0.GetValue();
 },
+() => 1,
 p => {
 const f0 = p._GetNode(0).GetBoundMethod();
 return () => f0(50, 400);
-}
+},
+() => "Player_2"
 	];
 }
 
